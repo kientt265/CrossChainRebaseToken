@@ -2,6 +2,8 @@
 pragma solidity ^0.8.24;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
  * @title Rebase Token
@@ -12,7 +14,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
  * the prevailing global interest rate upon their first interaction involving balance updates.
  * Balances are calculated dynamically in the `balanceOf` function.
  */
-contract RebaseToken is ERC20 {
+contract RebaseToken is ERC20, Ownable, AccessControl {
 
     error RebaseToken__InterestRateCanOnlyIncrease(uint256 s_interestRate,uint256 _newInterestRate);
 
@@ -23,11 +25,13 @@ contract RebaseToken is ERC20 {
     // Global interest rate per second (scaled by PRECISION_FACTOR)
     // Example: 5e10 represents 0.00000005 or 0.000005% per second
     uint256 private s_interestRate = 5e10;
-
+    bytes32 private constant MINT_AND_BURN_ROLE = keccak256("MINT_AND_BURN_ROLE");
     /**
      * @notice Initializes the Rebase Token with a name and symbol.
      */
-    constructor() ERC20("Rebase Token", "RBT") {}
+    constructor() ERC20("Rebase Token", "RBT") Ownable(msg.sender) {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    }
     // Maps users to their specific interest rate (set at interaction time)
     mapping(address => uint256) private s_userInterestRate;
 
@@ -42,7 +46,7 @@ contract RebaseToken is ERC20 {
      * Emits an {InterestRateSet} event on success.
      * @param _newInterestRate The desired new global interest rate per second (scaled by PRECISION_FACTOR).
      */
-    function setInterestRate(uint256 _newInterestRate) external {
+    function setInterestRate(uint256 _newInterestRate) external onlyOwner{
         // Ensure the interest rate never decreases
         if (_newInterestRate < s_interestRate) {
             revert RebaseToken__InterestRateCanOnlyIncrease(s_interestRate, _newInterestRate);
@@ -148,7 +152,7 @@ contract RebaseToken is ERC20 {
      * @param _to The recipient address.
      * @param _amount The amount of principal tokens to mint.
      */
-    function mint(address _to, uint256 _amount) external {
+    function mint(address _to, uint256 _amount) external onlyRole(MINT_AND_BURN_ROLE){
         // 1. Calculate and mint any pending interest for the recipient FIRST
         _mintAccruedInterest(_to);
 
@@ -165,7 +169,7 @@ contract RebaseToken is ERC20 {
      * @param _from The user to burn the tokens from
      * @param _amount The amount of tokens to burn
      */
-    function burn(address _from, uint256 _amount) external { // Note: Access control should be added
+    function burn(address _from, uint256 _amount) external onlyRole(MINT_AND_BURN_ROLE){ // Note: Access control should be added
         // Check if user wants to burn entire balance
         if (_amount == type(uint256).max) {
             // Update amount to current full balance including interest
@@ -191,7 +195,7 @@ contract RebaseToken is ERC20 {
     function getInterestRate() external view returns(uint256) {
         return s_interestRate;
     }
-    fuction transfer(address _recipient, uint256 _amount) public override returns(bool){
+    function transfer(address _recipient, uint256 _amount) public override returns(bool){
         _mintAccruedInterest(msg.sender);
         _mintAccruedInterest(_recipient);
         if(_amount == type(uint256).max){
@@ -203,7 +207,7 @@ contract RebaseToken is ERC20 {
         return super.transfer(_recipient, _amount);
     }
 
-    fuction transferFrom(address _sender, address _recipient, uint256 _amount) public override returns(bool) {
+    function transferFrom(address _sender, address _recipient, uint256 _amount) public override returns(bool) {
         _mintAccruedInterest(_sender);
         _mintAccruedInterest(_recipient);
         if(_amount == type(uint256).max){
@@ -214,4 +218,10 @@ contract RebaseToken is ERC20 {
         }
         return super.transferFrom(_sender, _recipient, _amount);
     }
+
+    function grantMintAndBurnRole(address _account) external onlyOwner {
+    _grantRole(MINT_AND_BURN_ROLE, _account);
+    // Optionally emit an event
+    // emit RoleGranted(MINT_AND_BURN_ROLE, _account, msg.sender);
+}
 } // End of RebaseToken contract
