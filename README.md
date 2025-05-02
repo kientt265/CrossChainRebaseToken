@@ -64,3 +64,4 @@ $ forge --help
 $ anvil --help
 $ cast --help
 ```
+forge install smartcontractkit/ccip@v2.17.0-ccip1.5.12 --no-commit

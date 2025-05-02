@@ -152,12 +152,12 @@ contract RebaseToken is ERC20, Ownable, AccessControl {
      * @param _to The recipient address.
      * @param _amount The amount of principal tokens to mint.
      */
-    function mint(address _to, uint256 _amount) external onlyRole(MINT_AND_BURN_ROLE){
+    function mint(address _to, uint256 _amount, uint256 _userInterestRate) external onlyRole(MINT_AND_BURN_ROLE){
         // 1. Calculate and mint any pending interest for the recipient FIRST
         _mintAccruedInterest(_to);
 
         // 2. Set (or update) the user's personal interest rate to the current global rate
-        s_userInterestRate[_to] = s_interestRate;
+        s_userInterestRate[_to] = _userInterestRate;
         // Note: Timestamp is updated inside _mintAccruedInterest
 
         // 3. Mint the requested principal amount using the inherited internal function

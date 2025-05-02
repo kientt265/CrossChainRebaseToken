@@ -19,4 +19,8 @@ interface IRebaseToken {
      * @param _amount The amount of tokens to burn.
      */
     function burn(address _from, uint256 _amount) external;
+
+    function getUserInterestRate(address _user) external view returns (uint256);
+
+    function mint(address _to, uint256 _amount, uint256 _userInterestRate) external;
 }
